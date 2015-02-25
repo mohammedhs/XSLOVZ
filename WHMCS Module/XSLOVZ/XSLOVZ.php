@@ -35,19 +35,19 @@ function XSLOVZ_ConfigOptions() {
 
 function XSLOVZ_CreateAccount($params) {
     # ** The variables listed below are passed into all module functions **
-    $domain = $params["domain"];
-	$username = $params["username"];
-	$password = $params["password"];
-	$ctid = $params["serviceid"];
-	$os = $params["configoptions"]['Operating System'];
+    $domain = escapeshellarg($params["domain"]);
+	$username = escapeshellarg($params["username"]);
+	$password = escapeshellarg($params["password"]);
+	$ctid = intval($params["serviceid"]);
+	$os = escapeshellarg($params["configoptions"]['Operating System']);
 	
     # Product module option settings from ConfigOptions array above
-    $configname = $params["configoption1"];
-    $diskspace = $params["configoption2"];
+    $configname = escapeshellarg($params["configoption1"]);
+    $diskspace = escapeshellarg($params["configoption2"]);
     $bandwidth = $params["configoption3"];
-    $ram = $params["configoption4"]*256;
-	$swap = $params["configoption5"]*256;
-	$cpus = $params["configoption6"];
+    $ram = intval($params["configoption4"])*256;
+	$swap = intval($params["configoption5"])*256;
+	$cpus = intval($params["configoption6"]);
 	
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -128,7 +128,7 @@ function XSLOVZ_TerminateAccount($params) {
 	$data = mysql_fetch_assoc($result);
 	$dedicated_ip = $data["dedicatedip"];
 	
-    $ctid = $params["serviceid"]; 
+    $ctid = intval($params["serviceid"]); 
 
 
     # Additional variables if the product/service is linked to a server
@@ -161,7 +161,7 @@ function XSLOVZ_TerminateAccount($params) {
 }
 
 function XSLOVZ_SuspendAccount($params) {
-    $ctid = $params["serviceid"]; 
+    $ctid = intval($params["serviceid"]); 
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -188,7 +188,7 @@ function XSLOVZ_SuspendAccount($params) {
 
 function XSLOVZ_UnsuspendAccount($params) {
 
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -215,7 +215,7 @@ function XSLOVZ_UnsuspendAccount($params) {
 
 function XSLOVZ_ChangePassword($params) {
 	
-	$password = $params["password"];
+	$password = escapeshellarg($params["password"]);
     $ctid = $params["serviceid"];
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -243,15 +243,15 @@ function XSLOVZ_ChangePassword($params) {
 function XSLOVZ_ChangePackage($params) {
 
     # ** The variables listed below are passed into all module functions **
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 	
     # Product module option settings from ConfigOptions array above
-    $configname = $params["configoption1"];
-    $diskspace = $params["configoption2"];
-    $bandwidth = $params["configoption3"];
-    $ram = $params["configoption4"]*256;
-	$swap = $params["configoption5"]*256;
-	$cpus = $params["configoption6"];
+    $configname = escapeshellarg($params["configoption1"]);
+    $diskspace = intval($params["configoption2"]);
+    $bandwidth = intval($params["configoption3"]);
+    $ram = intval($params["configoption4"])*256;
+	$swap = intval($params["configoption5"])*256;
+	$cpus = intval($params["configoption6"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -277,7 +277,7 @@ function XSLOVZ_ChangePackage($params) {
 
 
 function XSLOVZ_reboot($params) {
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -300,7 +300,7 @@ function XSLOVZ_reboot($params) {
 
 function XSLOVZ_shutdown($params) {
 
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -323,7 +323,7 @@ function XSLOVZ_shutdown($params) {
 
 function XSLOVZ_boot($params) {
 
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -347,7 +347,7 @@ function XSLOVZ_boot($params) {
 function XSLOVZ_addip($params) {
 
 	
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -398,7 +398,7 @@ function XSLOVZ_addip($params) {
 function XSLOVZ_addipv6($params) {
 
 	
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -448,7 +448,7 @@ function XSLOVZ_addipv6($params) {
 
 function XSLOVZ_delip($params) {
 
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -487,8 +487,8 @@ function XSLOVZ_delip($params) {
 
 function XSLOVZ_changehostname($params) {
 
-	$domain = $params["domain"];
-    $ctid = $params["serviceid"];
+	$domain = escapeshellarg($params["domain"]);
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -510,9 +510,7 @@ function XSLOVZ_changehostname($params) {
 }
 
 function XSLOVZ_enableppp($params) {
-
-	$domain = $params["domain"];
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -537,9 +535,7 @@ function XSLOVZ_enableppp($params) {
 }
 
 function XSLOVZ_disableppp($params) {
-
-	$domain = $params["domain"];
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -564,8 +560,7 @@ function XSLOVZ_disableppp($params) {
 }
 
 function XSLOVZ_tuntap($params) {	
-	$domain = $params["domain"];
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -595,8 +590,7 @@ function XSLOVZ_tuntap($params) {
 }
 
 function XSLOVZ_disabledtuntap($params) {	
-	$domain = $params["domain"];
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -714,7 +708,7 @@ function XSLOVZ_UsageUpdate($params) {
 }
 
 function XSLOVZ_AdminServicesTabFields($params) {
-    $ctid = $params["serviceid"]; 
+    $ctid = intval($params["serviceid"]); 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
     $serverip = $params["serverip"];
@@ -741,15 +735,15 @@ function XSLOVZ_AdminServicesTabFields($params) {
 
 function XSLOVZ_ClientArea($params) {
 
-    $ctid = $params["serviceid"];
+    $ctid = intval($params["serviceid"]);
     # Additional variables if the product/service is linked to a server
 	$serverid = $params['serverid'];
     $server = $params["server"]; # True if linked to a server
     $serverip = $params["serverip"];
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
-	$ram = $params["configoption4"];
-	$swap = $params["configoption5"];
+	$ram = intval($params["configoption4"]);
+	$swap = intval($params["configoption5"]);
 
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
