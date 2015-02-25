@@ -10,3 +10,11 @@ This is a server provisioning module made for WHMCS. it can help server administ
 * Clients have the ability to Reboot, Shutdown, Boot, their containers.
 * Admins have the ability to Suspend, Unsuspend, Add extra IPs.
 
+# Tutorials and Installation
+* <a href='https://www.xsltel.com/knowledgebase.php?action=displayarticle&id=12'>XSLOVZ Overview</a>
+
+* <a href='https://www.xsltel.com/knowledgebase.php?action=displayarticle&id=10'>Configure the module with your WHMCS and install ssh2_extension on your WHMCS server</a>
+
+* <a href='https://www.xsltel.com/knowledgebase.php?action=displayarticle&id=11'>Notes on OpenVZ installation</a>
+
+* <a href='https://www.xsltel.com/knowledgebase.php?action=displayarticle&id=13'>Configure Bandwidth Counter</a>
