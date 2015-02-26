@@ -27,6 +27,9 @@ function XSLOVZ_ConfigOptions() {
 	 "RAM" => array( "Type" => "text", "Size" => "5", "Description" => "megabytes" ),
 	 "vSwap RAM" => array( "Type" => "text", "Size" => "5", "Description" => "megabytes" ),
 	 "CPU Cores" => array( "Type" => "text", "Size" => "5", "Description" => "" ),
+	 "Sudo Path" => array( "Type" => "text", "Size" => "15", "Description" => "Sudo path incase its changed", "Default" => '/usr/bin/sudo' ),
+	 "vzctl Path" => array( "Type" => "text", "Size" => "15", "Description" => "vzctl path incase its changed", "Default" => '/usr/sbin/vzctl' ),
+
 	);
 	
 	return $configarray;
@@ -40,6 +43,8 @@ function XSLOVZ_CreateAccount($params) {
 	$password = escapeshellarg($params["password"]);
 	$ctid = intval($params["serviceid"]);
 	$os = escapeshellarg($params["configoptions"]['Operating System']);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 	
     # Product module option settings from ConfigOptions array above
     $configname = escapeshellarg($params["configoption1"]);
@@ -89,7 +94,7 @@ function XSLOVZ_CreateAccount($params) {
 	$assignedipv6 = getTextBetweenTags($data["assignedips"], "ipv6");
 	$assignedipv6 = preg_split('/\n|\r/', $assignedipv6, -1, PREG_SPLIT_NO_EMPTY);
 	foreach ($assignedipv6 as $ipv6) {
-	$assignedipv6 = ssh2_exec($connection,"/usr/sbin/vzlist -a -o ip -H| grep -o -w $ipv6");
+	$assignedipv6 = ssh2_exec($connection,"{$sudo} {$vzctl} -a -o ip -H| grep -o -w $ipv6");
 	stream_set_blocking($assignedipv6, true);
 	$assignedipv6 = trim(stream_get_contents($assignedipv6));
 	$ipv6 = trim($ipv6);
@@ -108,10 +113,10 @@ function XSLOVZ_CreateAccount($params) {
 	update_query("tblhosting",array("username"=>"root"),array("id"=>$params['serviceid']));
 	
 	$createvps = ssh2_exec($connection, "
-	/usr/sbin/vzctl create $ctid --ostemplate $os --config $configname --hostname $domain --ipadd $dedicated_ip;
-	/usr/sbin/vzctl start $ctid;
-	/usr/sbin/vzctl set $ctid --diskspace {$diskspace}g:{$diskspace}g  --physpages 0:{$ram} --swappages 0:{$swap}  --nameserver 8.8.8.8 --nameserver 8.8.4.4 --userpasswd root:$password --onboot yes --cpus $cpus --save;
-	/usr/sbin/vzctl set $ctid --ipadd {$assignedipv6} --save;
+	{$sudo} {$vzctl} create $ctid --ostemplate $os --config $configname --hostname $domain --ipadd $dedicated_ip;
+	{$sudo} {$vzctl} start $ctid;
+	{$sudo} {$vzctl} set $ctid --diskspace {$diskspace}g:{$diskspace}g  --physpages 0:{$ram} --swappages 0:{$swap}  --nameserver 8.8.8.8 --nameserver 8.8.4.4 --userpasswd root:$password --onboot yes --cpus $cpus --save;
+	{$sudo} {$vzctl} set $ctid --ipadd {$assignedipv6} --save;
 	");
 	if ($createvps) {
 		$result = "success";
@@ -129,6 +134,8 @@ function XSLOVZ_TerminateAccount($params) {
 	$dedicated_ip = $data["dedicatedip"];
 	
     $ctid = intval($params["serviceid"]); 
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
 
     # Additional variables if the product/service is linked to a server
@@ -145,10 +152,10 @@ function XSLOVZ_TerminateAccount($params) {
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 
 	$destroy = ssh2_exec($connection, "
-	/usr/sbin/vzctl stop $ctid;
-	/usr/sbin/vzctl destroy $ctid;
-	/sbin/iptables -D FORWARD -s $dedicated_ip -j ACCEPT;
-	/sbin/iptables -D FORWARD -d $dedicated_ip -j ACCEPT;
+	{$sudo} {$vzctl} stop $ctid;
+	{$sudo} {$vzctl} destroy $ctid;
+	{$sudo} /sbin/iptables -D FORWARD -s $dedicated_ip -j ACCEPT;
+	{$sudo} /sbin/iptables -D FORWARD -d $dedicated_ip -j ACCEPT;
 	");
 	
     if ($destroy) {
@@ -162,6 +169,8 @@ function XSLOVZ_TerminateAccount($params) {
 
 function XSLOVZ_SuspendAccount($params) {
     $ctid = intval($params["serviceid"]); 
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -173,8 +182,8 @@ function XSLOVZ_SuspendAccount($params) {
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	$suspend = ssh2_exec($connection, "
-	/usr/sbin/vzctl set $ctid --disabled yes --save;
-	/usr/sbin/vzctl stop $ctid;
+	{$sudo} {$vzctl} set $ctid --disabled yes --save;
+	{$sudo} {$vzctl} stop $ctid;
 	");
 	
     if ($suspend) {
@@ -189,6 +198,8 @@ function XSLOVZ_SuspendAccount($params) {
 function XSLOVZ_UnsuspendAccount($params) {
 
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -200,8 +211,8 @@ function XSLOVZ_UnsuspendAccount($params) {
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	$unsuspend = ssh2_exec($connection, "
-	/usr/sbin/vzctl set $ctid --disabled no --save;
-	/usr/sbin/vzctl start $ctid;
+	{$sudo} {$vzctl} set $ctid --disabled no --save;
+	{$sudo} {$vzctl} start $ctid;
 	");
 
     if ($unsuspend) {
@@ -222,13 +233,15 @@ function XSLOVZ_ChangePassword($params) {
     $serverip = $params["serverip"];
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 	
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	$changepassword = ssh2_exec($connection, "
-	/usr/sbin/vzctl start $ctid;
-	/usr/sbin/vzctl set {$ctid} --userpasswd root:{$password} --save;
+	{$sudo} {$vzctl} start $ctid;
+	{$sudo} {$vzctl} set {$ctid} --userpasswd root:{$password} --save;
 	");
 	
     if ($changepassword) {
@@ -244,6 +257,8 @@ function XSLOVZ_ChangePackage($params) {
 
     # ** The variables listed below are passed into all module functions **
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 	
     # Product module option settings from ConfigOptions array above
     $configname = escapeshellarg($params["configoption1"]);
@@ -262,8 +277,8 @@ function XSLOVZ_ChangePackage($params) {
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$changepackage = ssh2_exec($connection,"
-	/usr/sbin/vzctl set $ctid --applyconfig $configname --save ;
-	/usr/sbin/vzctl set $ctid --onboot yes --cpus $cpus --diskspace {$diskspace}g:{$diskspace}g --physpages 0:{$ram} --swappages 0:{$swap}  --save;
+	{$sudo} {$vzctl} set $ctid --applyconfig $configname --save ;
+	{$sudo} {$vzctl} set $ctid --onboot yes --cpus $cpus --diskspace {$diskspace}g:{$diskspace}g --physpages 0:{$ram} --swappages 0:{$swap}  --save;
 	");
 
     if ($changepackage) {
@@ -278,6 +293,8 @@ function XSLOVZ_ChangePackage($params) {
 
 function XSLOVZ_reboot($params) {
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -287,7 +304,7 @@ function XSLOVZ_reboot($params) {
 	
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
-	$reboot = ssh2_exec($connection,"/usr/sbin/vzctl restart $ctid;");
+	$reboot = ssh2_exec($connection,"{$sudo} {$vzctl} restart $ctid;");
 
     if ($reboot) {
 		$result = "success";
@@ -301,6 +318,8 @@ function XSLOVZ_reboot($params) {
 function XSLOVZ_shutdown($params) {
 
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -310,7 +329,7 @@ function XSLOVZ_shutdown($params) {
 	
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
-	$shutdown = ssh2_exec($connection,"/usr/sbin/vzctl stop $ctid;");
+	$shutdown = ssh2_exec($connection,"{$sudo} {$vzctl} stop $ctid;");
 
     if ($shutdown) {
 		$result = "success";
@@ -324,6 +343,8 @@ function XSLOVZ_shutdown($params) {
 function XSLOVZ_boot($params) {
 
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -333,7 +354,7 @@ function XSLOVZ_boot($params) {
 	
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
-	$boot = ssh2_exec($connection,"/usr/sbin/vzctl start $ctid;");
+	$boot = ssh2_exec($connection,"{$sudo} {$vzctl} start $ctid;");
 
     if ($boot) {
 		$result = "success";
@@ -348,6 +369,8 @@ function XSLOVZ_addip($params) {
 
 	
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -374,12 +397,12 @@ function XSLOVZ_addip($params) {
 	if (!empty($assignedips)) {
 	$assignedips = preg_split('/\n|\r/', $assignedips, -1, PREG_SPLIT_NO_EMPTY);
 	foreach ($assignedips as $ip) {
-	$assignedip = ssh2_exec($connection,"/usr/sbin/vzlist -a -o ip -H|grep -o -w $ip");
+	$assignedip = ssh2_exec($connection,"{$sudo} {$vzctl} -a -o ip -H|grep -o -w $ip");
 	stream_set_blocking($assignedip, true);
 	$assignedip = trim(stream_get_contents($assignedip));
 	$ip = trim($ip);
 	if ( $assignedip != $ip) {
-		$addip = ssh2_exec($connection,"/usr/sbin/vzctl set {$ctid} --ipadd {$ip} --save");
+		$addip = ssh2_exec($connection,"{$sudo} {$vzctl} set {$ctid} --ipadd {$ip} --save");
 		break;
 		}
 	}	
@@ -399,6 +422,8 @@ function XSLOVZ_addipv6($params) {
 
 	
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -425,12 +450,12 @@ function XSLOVZ_addipv6($params) {
 	if (!empty($assignedips)) {
 	$assignedips = preg_split('/\n|\r/', $assignedips, -1, PREG_SPLIT_NO_EMPTY);
 	foreach ($assignedips as $ip) {
-	$assignedip = ssh2_exec($connection,"/usr/sbin/vzlist -a -o ip -H|grep -o -w $ip");
+	$assignedip = ssh2_exec($connection,"{$sudo} {$vzctl} -a -o ip -H|grep -o -w $ip");
 	stream_set_blocking($assignedip, true);
 	$assignedip = trim(stream_get_contents($assignedip));
 	$ip = trim($ip);
 	if ( $assignedip != $ip) {
-		$addip = ssh2_exec($connection,"/usr/sbin/vzctl set {$ctid} --ipadd {$ip} --save");
+		$addip = ssh2_exec($connection,"{$sudo} {$vzctl} set {$ctid} --ipadd {$ip} --save");
 		break;
 		}
 	}	
@@ -449,6 +474,8 @@ function XSLOVZ_addipv6($params) {
 function XSLOVZ_delip($params) {
 
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -472,7 +499,7 @@ function XSLOVZ_delip($params) {
 
 	$assignedips = preg_split('/\n|\r/', $assignedips, -1, PREG_SPLIT_NO_EMPTY);
 	foreach ($assignedips as $ip) {
-	$delip = ssh2_exec($connection,"vzctl set {$ctid} --ipdel {$ip} --save;");
+	$delip = ssh2_exec($connection,"{$sudo} {$vzctl} set {$ctid} --ipdel {$ip} --save;");
 	sleep(10);
 	}
 	}
@@ -489,6 +516,8 @@ function XSLOVZ_changehostname($params) {
 
 	$domain = escapeshellarg($params["domain"]);
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -498,7 +527,7 @@ function XSLOVZ_changehostname($params) {
 	
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
-	$changehostname = ssh2_exec($connection,"/usr/sbin/vzctl set $ctid --hostname $domain --save;");
+	$changehostname = ssh2_exec($connection,"{$sudo} {$vzctl} set $ctid --hostname $domain --save;");
 
     if ($changehostname) {
 		$result = "success";
@@ -511,6 +540,8 @@ function XSLOVZ_changehostname($params) {
 
 function XSLOVZ_enableppp($params) {
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -521,9 +552,9 @@ function XSLOVZ_enableppp($params) {
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$ppp = ssh2_exec($connection,"
-	/usr/sbin/vzctl stop $ctid;
-	/usr/sbin/vzctl set $ctid --features ppp:on --save;
-	/usr/sbin/vzctl start $ctid");
+	{$sudo} {$vzctl} stop $ctid;
+	{$sudo} {$vzctl} set $ctid --features ppp:on --save;
+	{$sudo} {$vzctl} start $ctid");
 
     if ($ppp) {
 		$result = "success";
@@ -536,6 +567,8 @@ function XSLOVZ_enableppp($params) {
 
 function XSLOVZ_disableppp($params) {
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -546,9 +579,9 @@ function XSLOVZ_disableppp($params) {
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$ppp = ssh2_exec($connection,"
-	/usr/sbin/vzctl stop $ctid;
-	/usr/sbin/vzctl set $ctid --features ppp:off --save;
-	/usr/sbin/vzctl start $ctid");
+	{$sudo} {$vzctl} stop $ctid;
+	{$sudo} {$vzctl} set $ctid --features ppp:off --save;
+	{$sudo} {$vzctl} start $ctid");
 
     if ($ppp) {
 		$result = "success";
@@ -561,6 +594,8 @@ function XSLOVZ_disableppp($params) {
 
 function XSLOVZ_tuntap($params) {	
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -571,13 +606,13 @@ function XSLOVZ_tuntap($params) {
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$tuntap = ssh2_exec($connection,"
-	vzctl set {$ctid} --devnodes net/tun:rw --save;
-	vzctl set {$ctid} --devices c:10:200:rw --save;
-	vzctl stop {$ctid};
-	vzctl set {$ctid} --capability net_admin:on --save;
-	vzctl start {$ctid};
-	vzctl exec {$ctid} mkdir -p /dev/net;
-	vzctl exec {$ctid} mknod /dev/net/tun c 10 200;
+	{$sudo} {$vzctl} set {$ctid} --devnodes net/tun:rw --save;
+	{$sudo} {$vzctl} set {$ctid} --devices c:10:200:rw --save;
+	{$sudo} {$vzctl} stop {$ctid};
+	{$sudo} {$vzctl} set {$ctid} --capability net_admin:on --save;
+	{$sudo} {$vzctl} start {$ctid};
+	{$sudo} {$vzctl} exec {$ctid} mkdir -p /dev/net;
+	{$sudo} {$vzctl} exec {$ctid} mknod /dev/net/tun c 10 200;
 	");
 
     if ($tuntap) {
@@ -591,6 +626,8 @@ function XSLOVZ_tuntap($params) {
 
 function XSLOVZ_disabledtuntap($params) {	
     $ctid = intval($params["serviceid"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
     # Additional variables if the product/service is linked to a server
     $server = $params["server"]; # True if linked to a server
@@ -601,11 +638,11 @@ function XSLOVZ_disabledtuntap($params) {
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$tuntap = ssh2_exec($connection,"
-	vzctl set {$ctid} --devnodes net/tun:none --save;
-	vzctl set {$ctid} --devices c:10:200:none --save;
-	vzctl stop {$ctid};
-	vzctl set {$ctid} --capability net_admin:off --save;
-	vzctl start {$ctid};
+	{$sudo} {$vzctl} set {$ctid} --devnodes net/tun:none --save;
+	{$sudo} {$vzctl} set {$ctid} --devices c:10:200:none --save;
+	{$sudo} {$vzctl} stop {$ctid};
+	{$sudo} {$vzctl} set {$ctid} --capability net_admin:off --save;
+	{$sudo} {$vzctl} start {$ctid};
 	");
 
     if ($tuntap) {
@@ -654,6 +691,8 @@ function XSLOVZ_AdminCustomButtonArray() {
 
 
 function XSLOVZ_UsageUpdate($params) {
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 	
 	$serverid = $params['serverid'];
 	$serverhostname = $params['serverhostname'];
@@ -667,10 +706,10 @@ function XSLOVZ_UsageUpdate($params) {
 	
 	$result = select_query("tblhosting","",array("server"=>$serverid));
 	while ($row = mysql_fetch_assoc($result)) {
-		$useddiskspace = ssh2_exec($connection,"/usr/bin/du -s /var/lib/vz/private/{$row['id']} | cut -f 1");
+		$useddiskspace = ssh2_exec($connection,"{$sudo} /usr/bin/du -s /var/lib/vz/private/{$row['id']} | cut -f 1");
 		stream_set_blocking($useddiskspace, true);
 		$diskspace = stream_get_contents($useddiskspace)/1024;
-		$bandwidth = ssh2_exec($connection,"cat /var/lib/traffic/{$row['id']}.traffic");
+		$bandwidth = ssh2_exec($connection,"{$sudo} cat /var/lib/traffic/{$row['id']}.traffic");
 		stream_set_blocking($bandwidth, true);
 		$bandwidth = stream_get_contents($bandwidth);
 		$bandwidth = round($bandwidth/1024/1024,2);
@@ -714,14 +753,16 @@ function XSLOVZ_AdminServicesTabFields($params) {
     $serverip = $params["serverip"];
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 	
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
-	$current_assigned_ips = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o ip| grep -v IP_ADDR;");
+	$current_assigned_ips = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o ip| grep -v IP_ADDR;");
 	stream_set_blocking($current_assigned_ips, true);
-	$current_load_average = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o laverage| grep -v LAVERAGE;");
+	$current_load_average = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o laverage| grep -v LAVERAGE;");
 	stream_set_blocking($current_load_average, true);
-	$status = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o status| grep -v STATUS;");
+	$status = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o status| grep -v STATUS;");
 	stream_set_blocking($status, true);
 	
     $fieldsarray = array(
@@ -744,53 +785,55 @@ function XSLOVZ_ClientArea($params) {
     $serverpassword = $params["serverpassword"];
 	$ram = intval($params["configoption4"]);
 	$swap = intval($params["configoption5"]);
+	$sudo = $params["configoption7"];
+	$vzctl = $params["configoption8"];
 
 	$connection = ssh2_connect("$serverip", 22);
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	// Getting Load Averages of running VPS.
-	$current_load_average = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o laverage -H; ");
+	$current_load_average = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o laverage -H; ");
 	stream_set_blocking($current_load_average, true);
 	$current_load_average = stream_get_contents($current_load_average);
 	// Getting Status of running VPS.
-	$status = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o status -H; ");
+	$status = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o status -H; ");
 	stream_set_blocking($status, true);
 	$status = stream_get_contents($status);
 	// Getting uptime of running VPS.
-	$uptime = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o uptime -H; ");
+	$uptime = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o uptime -H; ");
 	stream_set_blocking($uptime, true);
 	$chars = array("d","h:","m:");
 	$words = array(" Day(s) ", " Hour(s) ", " Minute(s) ");
 	$uptime = stream_get_contents($uptime);
 	$uptime = str_replace($chars, $words, $uptime);
 	// Getting Used RAM percentage
-    $usedram = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o physpages -H; ");
+    $usedram = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o physpages -H; ");
 	stream_set_blocking($usedram, true);
 	$usedram = round(stream_get_contents($usedram) / 256,2);
 	$usedram_percent = round($usedram / $ram * 100,2);
 	// Getting Used SWAP percentage
-	$usedswap = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o swappages -H; ");
+	$usedswap = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o swappages -H; ");
 	stream_set_blocking($usedswap, true);
 	$usedswap = round(stream_get_contents($usedswap) / 256,2);
 	$usedswap_percent = round($usedswap / $swap * 100, 2);
 	// Getting Number of Proccesses / Threads
-	$numproc = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o numproc -H; ");
+	$numproc = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o numproc -H; ");
 	stream_set_blocking($numproc, true);
 	$numproc = stream_get_contents($numproc);
 	// Getting Assigned IPs
-	$ips = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o ip -H; ");
+	$ips = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o ip -H; ");
 	stream_set_blocking($ips, true);
 	$ips = stream_get_contents($ips);
 	// Getting Num of CPUs
-	$cpus = ssh2_exec($connection,"/usr/sbin/vzlist $ctid -o cpus -H; ");
+	$cpus = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o cpus -H; ");
 	stream_set_blocking($cpus, true);
 	$cpus = stream_get_contents($cpus);
 	// Getting CPU Model
-	$cpumodel = ssh2_exec($connection,"cat /proc/cpuinfo | grep \"model name\" | tail -n1 | cut -f 2 -d :");
+	$cpumodel = ssh2_exec($connection,"{$sudo} cat /proc/cpuinfo | grep \"model name\" | tail -n1 | cut -f 2 -d :");
 	stream_set_blocking($cpumodel, true);
 	$cpumodel = stream_get_contents($cpumodel);
 	
 	// Real Time Bandwidth
-	$bandwidth = ssh2_exec($connection,"cat /var/lib/traffic/$ctid.traffic");
+	$bandwidth = ssh2_exec($connection,"{$sudo} cat /var/lib/traffic/$ctid.traffic");
 	stream_set_blocking($bandwidth, true);
 	$bandwidth = stream_get_contents($bandwidth);
 	$bandwidth = round($bandwidth/1024/1024,2);
