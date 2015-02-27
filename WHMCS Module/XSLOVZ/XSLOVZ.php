@@ -3,18 +3,18 @@
 	XSLOVZ is WHMCS Module to control OpenVZ nodes over php ssh2 extension
 	Copyright (C) 2015  Mohammed H (hussein.m@xsl.tel)
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    any later version.
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 function XSLOVZ_ConfigOptions() {
 
@@ -35,7 +35,21 @@ function XSLOVZ_ConfigOptions() {
 	return $configarray;
 
 }
-
+	// Get text from {} tags
+function XSLOVZ_getTextBetweenTags($string, $tagname) {
+	$pattern = "/\{$tagname ?.*}(.*){\/$tagname}/s";
+	preg_match($pattern, $string, $matches);
+	return $matches[1];
+	}
+function XSLOVZ_getSSHPort($port,$params) {
+	$serveraccesshash = $params["serveraccesshash"];
+	$sshport = XSLOVZ_getTextBetweenTags($serveraccesshash, $port);
+	if(empty($sshport)) {
+		$sshport = '22';
+		}
+	return $sshport;
+	}
+		
 function XSLOVZ_CreateAccount($params) {
     # ** The variables listed below are passed into all module functions **
     $domain = escapeshellarg($params["domain"]);
@@ -59,16 +73,10 @@ function XSLOVZ_CreateAccount($params) {
     $serverip = $params["serverip"];
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
-	
-	$connection = ssh2_connect("$serverip", 22);
+
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
-	// Get text from {} tags
-	function getTextBetweenTags($string, $tagname) {
-    $pattern = "/\{$tagname ?.*}(.*){\/$tagname}/s";
-    preg_match($pattern, $string, $matches);
-    return $matches[1];
-	}
 	
 	// Get dedicated IP from server assigned IPs check it if its not used then assign it to a new VPS
 	$find_server = select_query("tblhosting","",array("id"=>$params['serviceid']));
@@ -78,7 +86,7 @@ function XSLOVZ_CreateAccount($params) {
 	$data = mysql_fetch_assoc($assigned_ips);
 	
 	// Process IPv4
-	$assignedips = getTextBetweenTags($data["assignedips"], "ip");
+	$assignedips = XSLOVZ_getTextBetweenTags($data["assignedips"], "ip");
 	$assignedips = preg_split('/\n|\r/', $assignedips, -1, PREG_SPLIT_NO_EMPTY);
 	foreach ($assignedips as $ip) {
 	$assignedip = ssh2_exec($connection,"/usr/sbin/vzlist -a -o ip -H| grep -o -w $ip");
@@ -91,7 +99,7 @@ function XSLOVZ_CreateAccount($params) {
 		}
 	}
 	// Process IPv6
-	$assignedipv6 = getTextBetweenTags($data["assignedips"], "ipv6");
+	$assignedipv6 = XSLOVZ_getTextBetweenTags($data["assignedips"], "ipv6");
 	$assignedipv6 = preg_split('/\n|\r/', $assignedipv6, -1, PREG_SPLIT_NO_EMPTY);
 	foreach ($assignedipv6 as $ipv6) {
 	$assignedipv6 = ssh2_exec($connection,"{$sudo} {$vzctl} -a -o ip -H| grep -o -w $ipv6");
@@ -148,7 +156,7 @@ function XSLOVZ_TerminateAccount($params) {
 	$data = mysql_fetch_assoc($result);
 	$dedicated_ip = $data["dedicatedip"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 
 	$destroy = ssh2_exec($connection, "
@@ -178,7 +186,7 @@ function XSLOVZ_SuspendAccount($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	$suspend = ssh2_exec($connection, "
@@ -207,7 +215,7 @@ function XSLOVZ_UnsuspendAccount($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	$unsuspend = ssh2_exec($connection, "
@@ -236,7 +244,7 @@ function XSLOVZ_ChangePassword($params) {
 	$sudo = $params["configoption7"];
 	$vzctl = $params["configoption8"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	$changepassword = ssh2_exec($connection, "
@@ -274,7 +282,7 @@ function XSLOVZ_ChangePackage($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$changepackage = ssh2_exec($connection,"
 	{$sudo} {$vzctl} set $ctid --applyconfig $configname --save ;
@@ -302,7 +310,7 @@ function XSLOVZ_reboot($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$reboot = ssh2_exec($connection,"{$sudo} {$vzctl} restart $ctid;");
 
@@ -327,7 +335,7 @@ function XSLOVZ_shutdown($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$shutdown = ssh2_exec($connection,"{$sudo} {$vzctl} stop $ctid;");
 
@@ -352,7 +360,7 @@ function XSLOVZ_boot($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$boot = ssh2_exec($connection,"{$sudo} {$vzctl} start $ctid;");
 
@@ -378,7 +386,7 @@ function XSLOVZ_addip($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	// Get text from html tags
@@ -431,7 +439,7 @@ function XSLOVZ_addipv6($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	// Get text from html tags
@@ -483,7 +491,7 @@ function XSLOVZ_delip($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	// Get text from html tags
 	function getTextBetweenTags($string, $tagname) {
@@ -525,7 +533,7 @@ function XSLOVZ_changehostname($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$changehostname = ssh2_exec($connection,"{$sudo} {$vzctl} set $ctid --hostname $domain --save;");
 
@@ -549,7 +557,7 @@ function XSLOVZ_enableppp($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$ppp = ssh2_exec($connection,"
 	{$sudo} {$vzctl} stop $ctid;
@@ -576,7 +584,7 @@ function XSLOVZ_disableppp($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$ppp = ssh2_exec($connection,"
 	{$sudo} {$vzctl} stop $ctid;
@@ -603,7 +611,7 @@ function XSLOVZ_tuntap($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$tuntap = ssh2_exec($connection,"
 	{$sudo} {$vzctl} set {$ctid} --devnodes net/tun:rw --save;
@@ -635,7 +643,7 @@ function XSLOVZ_disabledtuntap($params) {
     $serverusername = $params["serverusername"];
     $serverpassword = $params["serverpassword"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$tuntap = ssh2_exec($connection,"
 	{$sudo} {$vzctl} set {$ctid} --devnodes net/tun:none --save;
@@ -701,7 +709,7 @@ function XSLOVZ_UsageUpdate($params) {
 	$serverpassword = $params['serverpassword'];
 	$serveraccesshash = $params['serveraccesshash'];
 	$serversecure = $params['serversecure'];
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	
 	$result = select_query("tblhosting","",array("server"=>$serverid));
@@ -756,7 +764,7 @@ function XSLOVZ_AdminServicesTabFields($params) {
 	$sudo = $params["configoption7"];
 	$vzctl = $params["configoption8"];
 	
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	$current_assigned_ips = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o ip| grep -v IP_ADDR;");
 	stream_set_blocking($current_assigned_ips, true);
@@ -788,7 +796,7 @@ function XSLOVZ_ClientArea($params) {
 	$sudo = $params["configoption7"];
 	$vzctl = $params["configoption8"];
 
-	$connection = ssh2_connect("$serverip", 22);
+	$connection = ssh2_connect("$serverip", XSLOVZ_getSSHPort('port',$params));
 	ssh2_auth_password($connection, "$serverusername", "$serverpassword");
 	// Getting Load Averages of running VPS.
 	$current_load_average = ssh2_exec($connection,"{$sudo} /usr/sbin/vzlist $ctid -o laverage -H; ");
