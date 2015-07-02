@@ -215,9 +215,9 @@ function XSLOVZ_CreateAccount($params) {
 	update_query("tblhosting",array("username"=>"root"),array("id"=>$params['serviceid']));
 	
 	$createvps = ssh2_exec($connection, "
-	{$sudo} {$vzctl} create $ctid --ostemplate $os --config $configname --hostname $domain --ipadd $dedicated_ip;
+	{$sudo} {$vzctl} create $ctid --ostemplate $os --config $configname --hostname $domain --ipadd $dedicated_ip --diskspace {$diskspace}g:{$diskspace}g;
 	{$sudo} {$vzctl} start $ctid;
-	{$sudo} {$vzctl} set $ctid --diskspace {$diskspace}g:{$diskspace}g  --physpages 0:{$ram} --swappages 0:{$swap}  --nameserver 8.8.8.8 --nameserver 8.8.4.4 --userpasswd root:$password --onboot yes --cpus $cpus --save;
+	{$sudo} {$vzctl} set $ctid   --physpages 0:{$ram} --swappages 0:{$swap}  --nameserver 8.8.8.8 --nameserver 8.8.4.4 --userpasswd root:$password --onboot yes --cpus $cpus --save;
 	{$sudo} {$vzctl} set $ctid --ipadd {$assignedipv6} --save;
 	");
 	if ($createvps) {
